@@ -1,7 +1,7 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import DashboardChildrenLayout from '@/components/shared/DashboardChildrenLayout'
-import { Plus, Check, X, Pencil, Star, MapPin, Target, ClipboardList, Send, Calendar, Clock, AlertTriangle } from 'lucide-react'
+import { Plus, Check, X, Pencil, Star, MapPin, Target, ClipboardList, Send, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface Surveyor {
@@ -159,7 +159,7 @@ const SurveyorAssaignmentPage = () => {
     const oldAsn = assignments.find(a => a.id === updatedAsn.id)
     if (oldAsn && oldAsn.surveyor !== updatedAsn.surveyor) {
       setSurveyors(prev => prev.map(s => {
-        let sc = { ...s }
+        const sc = { ...s }
         if (s.name === oldAsn.surveyor) {
           sc.activeCount = Math.max(0, s.activeCount - 1)
           if (sc.activeCount === 0 && sc.status !== 'offline') sc.status = 'available'
