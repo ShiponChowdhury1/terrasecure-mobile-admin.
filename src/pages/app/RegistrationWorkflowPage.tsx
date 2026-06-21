@@ -229,10 +229,22 @@ const RegistrationWorkflowPage = () => {
   const [activeDrawerReg, setActiveDrawerReg] = useState<Registration | null>(null)
   const [gisModalReg, setGisModalReg] = useState<Registration | null>(null)
 
-  // Reset pagination on filter change
-  useEffect(() => {
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val)
     setCurrentPage(1)
-  }, [searchQuery, cityFilter, statusFilter, stepFilter])
+  }
+  const handleCityChange = (val: string) => {
+    setCityFilter(val)
+    setCurrentPage(1)
+  }
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val)
+    setCurrentPage(1)
+  }
+  const handleStepChange = (val: string) => {
+    setStepFilter(val)
+    setCurrentPage(1)
+  }
 
   // Filter registrations
   const filteredRegs = registrations.filter((reg) => {
@@ -300,7 +312,7 @@ const RegistrationWorkflowPage = () => {
                   type="text"
                   placeholder="Search parcels..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50/40 rounded-lg text-sm text-title placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 transition-all font-semibold leading-relaxed"
                 />
               </div>
@@ -311,7 +323,7 @@ const RegistrationWorkflowPage = () => {
                 header="All Cities"
                 options={['All', 'Yaoundé', 'Douala', 'Bamenda', 'Bafoussam', 'Garoua', 'Maroua']}
                 selected={cityFilter}
-                onSelect={setCityFilter}
+                onSelect={handleCityChange}
               />
 
               {/* Status Filter */}
@@ -320,7 +332,7 @@ const RegistrationWorkflowPage = () => {
                 header="All Statuses"
                 options={['All', 'In Progress', 'Completed', 'Pending', 'Rejected']}
                 selected={statusFilter}
-                onSelect={setStatusFilter}
+                onSelect={handleStatusChange}
               />
 
               {/* Steps Filter */}
@@ -329,7 +341,7 @@ const RegistrationWorkflowPage = () => {
                 header="All Steps"
                 options={['All', 'Step 1/7', 'Step 2/7', 'Step 3/7', 'Step 4/7', 'Step 5/7', 'Step 6/7', 'Step 7/7']}
                 selected={stepFilter}
-                onSelect={setStepFilter}
+                onSelect={handleStepChange}
               />
 
             </div>
@@ -467,6 +479,7 @@ const RegistrationWorkflowPage = () => {
         {/* Side Workflow Drawer (Displays on right side when open) */}
         {activeDrawerReg && (
           <RegistrationWorkflowDrawer
+            key={activeDrawerReg.id}
             registration={activeDrawerReg}
             onClose={() => setActiveDrawerReg(null)}
             onUpdate={handleUpdateRegWorkflow}
@@ -515,16 +528,8 @@ const RegistrationWorkflowDrawer = ({
 }: RegistrationWorkflowDrawerProps) => {
   const [selectedStepTab, setSelectedStepTab] = useState<number>(registration.currentStep)
   const [noteText, setNoteText] = useState('')
-  const [surveyorInput, setSurveyorInput] = useState('')
-  const [visitDateInput, setVisitDateInput] = useState('')
-
-  // Always sync tab when selected registration changes
-  useEffect(() => {
-    setSelectedStepTab(registration.currentStep)
-    setNoteText('')
-    setSurveyorInput(registration.surveyor || 'Paul Biya Jr')
-    setVisitDateInput(registration.fieldVisitDate || '')
-  }, [registration])
+  const [surveyorInput, setSurveyorInput] = useState(registration.surveyor || 'Paul Biya Jr')
+  const [visitDateInput, setVisitDateInput] = useState(registration.fieldVisitDate || '')
 
   const steps = [
     { id: 1, label: 'Review Submission', desc: 'Step 1: Review Submission' },

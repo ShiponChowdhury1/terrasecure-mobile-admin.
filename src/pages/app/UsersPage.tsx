@@ -1,7 +1,7 @@
 "use client"
 import React, { useState, useEffect, useRef } from 'react'
 import DashboardChildrenLayout from '@/components/shared/DashboardChildrenLayout'
-import { Plus, Search, Eye, Pencil, Trash2, UserPlus, Download, ChevronDown, X, Mail, Phone, Calendar, Landmark, Check, AlertTriangle, Shield, CheckCircle2 } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, UserPlus, Download, ChevronDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import CustomPagination from '@/components/shared/CustomPagination'
 
@@ -233,10 +233,22 @@ const UsersPage = () => {
   const [editUserModalData, setEditUserModalData] = useState<UserAccount | null>(null)
   const [activeDrawerUser, setActiveDrawerUser] = useState<UserAccount | null>(null)
 
-  // Reset pagination on filter change
-  useEffect(() => {
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val)
     setCurrentPage(1)
-  }, [searchQuery, roleFilter, statusFilter, dateFilter])
+  }
+  const handleRoleChange = (val: string) => {
+    setRoleFilter(val)
+    setCurrentPage(1)
+  }
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val)
+    setCurrentPage(1)
+  }
+  const handleDateChange = (val: string) => {
+    setDateFilter(val)
+    setCurrentPage(1)
+  }
 
   // Filtering
   const filteredUsers = users.filter((u) => {
@@ -326,7 +338,7 @@ const UsersPage = () => {
                   type="text"
                   placeholder="Search parcels..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50/40 rounded-lg text-sm text-title placeholder:text-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 transition-all font-semibold leading-relaxed"
                 />
               </div>
@@ -337,7 +349,7 @@ const UsersPage = () => {
                 header="All Roles"
                 options={['All', 'Super Admin', 'Admin', 'Surveyor', 'Field Agent', 'Supervisor', 'Client']}
                 selected={roleFilter}
-                onSelect={setRoleFilter}
+                onSelect={handleRoleChange}
               />
 
               {/* Statuses dropdown */}
@@ -346,7 +358,7 @@ const UsersPage = () => {
                 header="All Statuses"
                 options={['All', 'Active', 'Suspended']}
                 selected={statusFilter}
-                onSelect={setStatusFilter}
+                onSelect={handleStatusChange}
               />
 
               {/* Date Range dropdown */}
@@ -355,7 +367,7 @@ const UsersPage = () => {
                 header="Date Range"
                 options={['Date Range', 'This Week', 'This Month', 'This Year']}
                 selected={dateFilter}
-                onSelect={setDateFilter}
+                onSelect={handleDateChange}
               />
 
             </div>
@@ -431,7 +443,7 @@ const UsersPage = () => {
                         <td className="py-4 px-4">
                           <span
                             className={cn(
-                              "px-2.5 py-0.5 rounded text-[10px] font-bold text-white shadow-sm",
+                              "px-2.5 py-0.5 rounded text-[10px] font-bold text-white shadow-sm whitespace-nowrap",
                               user.role === 'Super Admin' && 'bg-slate-900',
                               user.role === 'Admin' && 'bg-blue-500',
                               user.role === 'Surveyor' && 'bg-indigo-600',
