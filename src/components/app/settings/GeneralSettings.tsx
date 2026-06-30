@@ -1,7 +1,13 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Settings, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Helper to validate email format
+const validateEmail = (email: string) => {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailPattern.test(email.trim())
+}
 
 const GeneralSettings = () => {
   const [maintenanceMode, setMaintenanceMode] = useState(false)
@@ -18,25 +24,36 @@ const GeneralSettings = () => {
     currency: 'XAF'
   })
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = useCallback((e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!platformName.trim()) {
+      alert('Platform name cannot be empty.')
+      return
+    }
+
+    if (!validateEmail(supportEmail)) {
+      alert('Please enter a valid support email address.')
+      return
+    }
+
     setTempData({
       maintenanceMode,
-      platformName,
-      supportEmail,
+      platformName: platformName.trim(),
+      supportEmail: supportEmail.trim(),
       language,
       currency
     })
     alert('General settings saved successfully.')
-  }
+  }, [maintenanceMode, platformName, supportEmail, language, currency])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setMaintenanceMode(tempData.maintenanceMode)
     setPlatformName(tempData.platformName)
     setSupportEmail(tempData.supportEmail)
     setLanguage(tempData.language)
     setCurrency(tempData.currency)
-  }
+  }, [tempData])
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs relative text-left">
@@ -104,7 +121,7 @@ const GeneralSettings = () => {
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-3.5 py-2 border border-slate-200 bg-slate-50/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
+              className="w-full px-3.5 py-2 border border-slate-200 bg-slate-55/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
             >
               <option value="English">English</option>
               <option value="French">French</option>
@@ -115,7 +132,7 @@ const GeneralSettings = () => {
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full px-3.5 py-2 border border-slate-200 bg-slate-50/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
+              className="w-full px-3.5 py-2 border border-slate-200 bg-slate-55/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
             >
               <option value="XAF">XAF</option>
               <option value="USD">USD</option>

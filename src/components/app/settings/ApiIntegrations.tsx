@@ -1,6 +1,6 @@
 "use client"
-import React, { useState } from 'react'
-import { Plus, Search, Key, ShieldCheck, X, FileText, Clipboard, Trash2, Check } from 'lucide-react'
+import React, { useState, useMemo, useCallback } from 'react'
+import { Plus, Search, Key, ShieldCheck, X, Clipboard, Trash2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ApiKeyItem {
@@ -58,29 +58,32 @@ const ApiIntegrations = () => {
     GIS: true
   })
 
-  // Filtering list
-  const filteredKeys = keysList.filter(k =>
-    k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    k.keyId.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filtering list memoized
+  const filteredKeys = useMemo(() => {
+    const query = searchTerm.toLowerCase().trim()
+    if (!query) return keysList
+    return keysList.filter(
+      k => k.name.toLowerCase().includes(query) || k.keyId.toLowerCase().includes(query)
+    )
+  }, [keysList, searchTerm])
 
-  const handleRevokeKey = (id: string, name: string) => {
+  const handleRevokeKey = useCallback((id: string, name: string) => {
     if (confirm(`Are you sure you want to revoke the API key "${name}"? Apps using this key will immediately lose access.`)) {
       setKeysList(prev =>
         prev.map(k => k.id === id ? { ...k, status: 'Revoked' } : k)
       )
     }
-  }
+  }, [])
 
-  const handleDeleteKey = (id: string, name: string) => {
+  const handleDeleteKey = useCallback((id: string, name: string) => {
     if (confirm(`Are you sure you want to permanently delete the API key "${name}"?`)) {
       setKeysList(prev => prev.filter(k => k.id !== id))
     }
-  }
+  }, [])
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    if (!newKeyName) {
+    if (!newKeyName.trim()) {
       alert('Please fill out the key name.')
       return
     }
@@ -88,10 +91,11 @@ const ApiIntegrations = () => {
     const randomSuffix = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10)
     const newKeyToken = `ls_live_${randomSuffix}`
 
+    const nameSlug = newKeyName.trim().toLowerCase().replace(/ /g, '_')
     const newKeyObj: ApiKeyItem = {
       id: `key-${Date.now()}`,
-      name: newKeyName,
-      keyId: `${newKeyName.toLowerCase().replace(/ /g, '_')}_${randomSuffix.substring(0, 8)}`,
+      name: newKeyName.trim(),
+      keyId: `${nameSlug}_${randomSuffix.substring(0, 8)}`,
       created: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       expires: newKeyExpires === 'Never' ? 'Never' : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       status: 'Active'
@@ -104,14 +108,18 @@ const ApiIntegrations = () => {
     // Reset fields
     setNewKeyName('')
     setNewKeyExpires('1 Year')
-  }
+  }, [newKeyName, newKeyExpires])
 
-  const handleCopyKey = () => {
+  const handleCopyKey = useCallback(() => {
     if (generatedKey) {
       navigator.clipboard.writeText(generatedKey)
       alert('API key copied to clipboard! Save it securely.')
     }
-  }
+  }, [generatedKey])
+
+  const handleToggleScope = useCallback((scope: keyof typeof selectedScopes) => {
+    setSelectedScopes(prev => ({ ...prev, [scope]: !prev[scope] }))
+  }, [])
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs text-left space-y-6">
@@ -143,7 +151,7 @@ const ApiIntegrations = () => {
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-950 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-955 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Create Key</span>
@@ -169,8 +177,8 @@ const ApiIntegrations = () => {
                   <tr key={k.id} className="hover:bg-slate-50/20 transition-colors">
                     <td className="py-4 px-4 text-xs font-bold text-slate-800">{k.name}</td>
                     <td className="py-4 px-4 text-xs font-mono text-slate-500 font-semibold">{k.keyId}</td>
-                    <td className="py-4 px-4 text-xs font-semibold text-slate-450">{k.created}</td>
-                    <td className="py-4 px-4 text-xs font-semibold text-slate-450">{k.expires}</td>
+                    <td className="py-4 px-4 text-xs font-semibold text-slate-455">{k.created}</td>
+                    <td className="py-4 px-4 text-xs font-semibold text-slate-455">{k.expires}</td>
                     <td className="py-4 px-4">
                       <span
                         className={cn(
@@ -228,7 +236,7 @@ const ApiIntegrations = () => {
             </button>
             <div className="mb-5 pb-3 border-b border-slate-50">
               <h3 className="text-sm font-bold text-slate-900">Create API Key</h3>
-              <p className="text-xs font-semibold text-slate-450 mt-0.5">Generate a secure programmatic token</p>
+              <p className="text-xs font-semibold text-slate-455 mt-0.5">Generate a secure programmatic token</p>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
@@ -258,7 +266,7 @@ const ApiIntegrations = () => {
                 </select>
               </div>
 
-              {/* Scopes scope selection */}
+              {/* Scopes selection */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-700 block">Select Scope Scopes</label>
                 <div className="grid grid-cols-2 gap-2 bg-slate-50/50 border border-slate-100 rounded-xl p-3">
@@ -268,7 +276,7 @@ const ApiIntegrations = () => {
                       <button
                         key={scope}
                         type="button"
-                        onClick={() => setSelectedScopes(prev => ({ ...prev, [scope]: !isChecked }))}
+                        onClick={() => handleToggleScope(scope)}
                         className="flex items-center gap-2 py-1 hover:opacity-85 text-left focus:outline-none cursor-pointer"
                       >
                         <span
@@ -341,7 +349,7 @@ const ApiIntegrations = () => {
               <div className="flex items-center justify-end">
                 <button
                   onClick={() => setGeneratedKey(null)}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-950 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-955 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
                 >
                   Close
                 </button>

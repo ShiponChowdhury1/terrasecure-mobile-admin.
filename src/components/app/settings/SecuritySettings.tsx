@@ -1,7 +1,13 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { ShieldCheck, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Helper to validate IPv4 address or CIDR subnet
+const validateIpOrCidr = (ip: string) => {
+  const ipv4Pattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:3[0-2]|[12]?[0-9]))?$/
+  return ipv4Pattern.test(ip.trim())
+}
 
 const SecuritySettings = () => {
   const [requireMfa, setRequireMfa] = useState(true)
@@ -18,8 +24,23 @@ const SecuritySettings = () => {
     allowedIps: '197.155.0.0/16, 41.200.0.0/12'
   })
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = useCallback((e: React.FormEvent) => {
     e.preventDefault()
+
+    if (ipWhitelisting) {
+      const ips = allowedIps.split(',').map((ip) => ip.trim()).filter(Boolean)
+      if (ips.length === 0) {
+        alert('Please enter at least one IP range for whitelisting.')
+        return
+      }
+
+      const invalidIps = ips.filter((ip) => !validateIpOrCidr(ip))
+      if (invalidIps.length > 0) {
+        alert(`Invalid IP Address or CIDR block format detected: ${invalidIps.join(', ')}. Please correct it before saving.`)
+        return
+      }
+    }
+
     setTempRules({
       requireMfa,
       sessionTimeout,
@@ -28,15 +49,15 @@ const SecuritySettings = () => {
       allowedIps
     })
     alert('Security configurations updated successfully.')
-  }
+  }, [requireMfa, sessionTimeout, passwordComplexity, ipWhitelisting, allowedIps])
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setRequireMfa(tempRules.requireMfa)
     setSessionTimeout(tempRules.sessionTimeout)
     setPasswordComplexity(tempRules.passwordComplexity)
     setIpWhitelisting(tempRules.ipWhitelisting)
     setAllowedIps(tempRules.allowedIps)
-  }
+  }, [tempRules])
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs text-left space-y-6">
@@ -57,7 +78,7 @@ const SecuritySettings = () => {
         <div className="flex justify-between items-center bg-slate-50/50 border border-slate-100 rounded-xl p-4">
           <div>
             <span className="text-xs font-bold text-slate-700 block">Require Multi-Factor Authentication (MFA)</span>
-            <span className="text-[10px] text-slate-450 font-medium leading-relaxed">
+            <span className="text-[10px] text-slate-455 font-medium leading-relaxed">
               Force all administrative users to configure MFA via authenticator app.
             </span>
           </div>
@@ -111,7 +132,7 @@ const SecuritySettings = () => {
         <div className="flex justify-between items-center bg-slate-50/50 border border-slate-100 rounded-xl p-4">
           <div>
             <span className="text-xs font-bold text-slate-700 block">IP Whitelisting</span>
-            <span className="text-[10px] text-slate-450 font-medium leading-relaxed">
+            <span className="text-[10px] text-slate-455 font-medium leading-relaxed">
               Restrict administrative dashboard access to trusted IP ranges.
             </span>
           </div>
@@ -155,7 +176,7 @@ const SecuritySettings = () => {
           <button
             type="button"
             onClick={handleCancel}
-            className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            className="px-4 py-2 text-xs font-bold text-slate-650 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
           >
             Cancel
           </button>

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import DashboardChildrenLayout from '@/components/shared/DashboardChildrenLayout'
 import {
   Crown,
@@ -11,21 +11,19 @@ import {
   Plus,
   RefreshCw,
   Megaphone,
-  X,
-  Shield,
-  Settings,
-  ToggleLeft,
-  ToggleRight
+  Settings
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import PlanModalEditor from '@/components/app/subscription/PlanModalEditor'
+import ConfigurationDrawer from '@/components/app/subscription/ConfigurationDrawer'
 
-interface Feature {
+export interface Feature {
   id: string
   text: string
   enabled: boolean
 }
 
-interface SubscriptionPlan {
+export interface SubscriptionPlan {
   id: string
   name: string
   unlocksDescription: string
@@ -40,7 +38,7 @@ interface SubscriptionPlan {
   icon: 'zap' | 'star' | 'crown'
 }
 
-interface PaymentMethod {
+export interface PaymentMethod {
   id: string
   name: string
   description: string
@@ -50,7 +48,7 @@ interface PaymentMethod {
   modifiedAt: string
 }
 
-interface FeeType {
+export interface FeeType {
   id: string
   name: string
   description: string
@@ -60,7 +58,7 @@ interface FeeType {
   modifiedAt: string
 }
 
-interface AccessTier {
+export interface AccessTier {
   id: string
   name: string
   description: string
@@ -240,28 +238,47 @@ const SubscriptionPage = () => {
     isActive: boolean
   } | null>(null)
 
-  // Calculations for stats
-  const activePlansCount = plans.filter((p) => p.isActive).length
-  const totalPlansCount = plans.length
-
-  const activeMethodsCount = paymentMethods.filter((p) => p.isActive).length
-  const activeFeesCount = feeTypes.filter((f) => f.isActive).length
-  const activeTiersCount = accessTiers.filter((t) => t.isActive).length
-
-  const totalFlags = paymentMethods.length + feeTypes.length + accessTiers.length
-  const activeFlagsCount = activeMethodsCount + activeFeesCount + activeTiersCount
+  // Calculations for stats memoized
+  const stats = useMemo(() => {
+    const activePlansCount = plans.filter((p) => p.isActive).length
+    const activeMethodsCount = paymentMethods.filter((p) => p.isActive).length
+    const activeFeesCount = feeTypes.filter((f) => f.isActive).length
+    const activeTiersCount = accessTiers.filter((t) => t.isActive).length
+    return {
+      activePlansCount,
+      totalPlansCount: plans.length,
+      activeMethodsCount,
+      activeFeesCount,
+      activeTiersCount,
+      totalFlags: paymentMethods.length + feeTypes.length + accessTiers.length,
+      activeFlagsCount: activeMethodsCount + activeFeesCount + activeTiersCount
+    }
+  }, [plans, paymentMethods, feeTypes, accessTiers])
 
   // Synchronize Payment quick controls switch changes with method registry
-  const handleQuickTogglePayment = (id: string, active: boolean) => {
+  const handleQuickTogglePayment = useCallback((id: string, active: boolean) => {
     setPaymentMethods((prev) =>
       prev.map((pm) =>
         pm.id === id ? { ...pm, isActive: active, modifiedBy: 'Jean Alima', modifiedAt: 'Just now' } : pm
       )
     )
-  }
+  }, [])
+
+  // Quick toggles for Fee Types and Access Tiers
+  const handleToggleFee = useCallback((id: string) => {
+    setFeeTypes((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, isActive: !f.isActive, modifiedBy: 'Jean Alima', modifiedAt: 'Just now' } : f))
+    )
+  }, [])
+
+  const handleToggleAccessTier = useCallback((id: string) => {
+    setAccessTiers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, isActive: !t.isActive, modifiedBy: 'Jean Alima', modifiedAt: 'Just now' } : t))
+    )
+  }, [])
 
   // Handle saving banner changes
-  const handleSaveBanner = () => {
+  const handleSaveBanner = useCallback(() => {
     setTempBanner({
       enabled: bannerEnabled,
       label: bannerLabel,
@@ -269,53 +286,62 @@ const SubscriptionPage = () => {
       title: bannerTitle
     })
     alert('Promotional banner settings saved successfully.')
-  }
+  }, [bannerEnabled, bannerLabel, bannerSubtitle, bannerTitle])
 
   // Handle canceling banner changes
-  const handleCancelBanner = () => {
+  const handleCancelBanner = useCallback(() => {
     setBannerEnabled(tempBanner.enabled)
     setBannerLabel(tempBanner.label)
     setBannerSubtitle(tempBanner.subtitle)
     setBannerTitle(tempBanner.title)
-  }
+  }, [tempBanner])
 
   // Plan toggles
-  const handleTogglePlan = (id: string) => {
+  const handleTogglePlan = useCallback((id: string) => {
     setPlans((prev) =>
       prev.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p))
     )
-  }
+  }, [])
 
   // Delete plan
-  const handleDeletePlan = (id: string, name: string) => {
+  const handleDeletePlan = useCallback((id: string, name: string) => {
     if (confirm(`Are you sure you want to delete the plan "${name}"?`)) {
       setPlans((prev) => prev.filter((p) => p.id !== id))
     }
-  }
+  }, [])
 
   // Add plan submit
-  const handleCreatePlan = (newPlan: Omit<SubscriptionPlan, 'id'>) => {
+  const handleCreatePlan = useCallback((newPlan: Omit<SubscriptionPlan, 'id'>) => {
     const created: SubscriptionPlan = {
       ...newPlan,
       id: `plan-${Date.now()}`
     }
     setPlans((prev) => [...prev, created].sort((a, b) => a.displayOrder - b.displayOrder))
     setIsAddModalOpen(false)
-  }
+  }, [])
 
   // Edit plan submit
-  const handleUpdatePlan = (updatedPlan: SubscriptionPlan) => {
+  const handleUpdatePlan = useCallback((updatedPlan: SubscriptionPlan) => {
     setPlans((prev) =>
       prev.map((p) => (p.id === updatedPlan.id ? updatedPlan : p)).sort((a, b) => a.displayOrder - b.displayOrder)
     )
     setEditingPlan(null)
-  }
+  }, [])
 
   // Generic Save Configuration callback
-  const handleSaveConfiguration = (id: string, type: 'payment' | 'fee' | 'tier', name: string) => {
+  const handleSaveConfiguration = useCallback((id: string, type: 'payment' | 'fee' | 'tier', name: string) => {
     alert(`Configuration for "${name}" saved successfully.`)
     setConfiguringItem(null)
-  }
+  }, [])
+
+  const handleClosePlanModal = useCallback(() => {
+    setIsAddModalOpen(false)
+    setEditingPlan(null)
+  }, [])
+
+  const handleCloseConfigDrawer = useCallback(() => {
+    setConfiguringItem(null)
+  }, [])
 
   return (
     <DashboardChildrenLayout
@@ -328,7 +354,7 @@ const SubscriptionPage = () => {
           {/* Card 1 */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-xs">
             <h4 className="text-xl md:text-2xl font-bold text-purple-600 font-mono">
-              {activePlansCount}/{totalPlansCount} active
+              {stats.activePlansCount}/{stats.totalPlansCount} active
             </h4>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">
               Subscription Plans
@@ -337,7 +363,7 @@ const SubscriptionPage = () => {
           {/* Card 2 */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-xs">
             <h4 className="text-xl md:text-2xl font-bold text-emerald-600 font-mono">
-              {activeFlagsCount}/{totalFlags}
+              {stats.activeFlagsCount}/{stats.totalFlags}
             </h4>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">
               Feature Flags On
@@ -346,7 +372,7 @@ const SubscriptionPage = () => {
           {/* Card 3 */}
           <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-xs">
             <h4 className="text-xl md:text-2xl font-bold text-blue-600 font-mono">
-              {activeMethodsCount}
+              {stats.activeMethodsCount}
             </h4>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1">
               Payment Methods Active
@@ -454,7 +480,7 @@ const SubscriptionPage = () => {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-650">Subtitle</label>
+                  <label className="text-xs font-bold text-slate-655">Subtitle</label>
                   <input
                     type="text"
                     value={bannerSubtitle}
@@ -464,7 +490,7 @@ const SubscriptionPage = () => {
                   />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-bold text-slate-650">Title</label>
+                  <label className="text-xs font-bold text-slate-655">Title</label>
                   <input
                     type="text"
                     value={bannerTitle}
@@ -496,7 +522,7 @@ const SubscriptionPage = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <h3 className="text-base font-bold text-slate-950">Subscription Plans</h3>
+                  <h3 className="text-base font-bold text-slate-955">Subscription Plans</h3>
                   <p className="text-xs font-semibold text-slate-400">
                     {plans.length} active · displayed in this order to clients
                   </p>
@@ -569,7 +595,7 @@ const SubscriptionPage = () => {
                               {/* Edit */}
                               <button
                                 onClick={() => setEditingPlan(plan)}
-                                className="text-emerald-600 hover:bg-emerald-50 p-1 rounded-md transition-colors cursor-pointer border border-transparent hover:border-emerald-100"
+                                className="text-emerald-600 hover:bg-emerald-50 p-1 rounded-md transition-colors cursor-pointer border border-transparent hover:border-emerald-105"
                                 title="Edit plan"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -578,7 +604,7 @@ const SubscriptionPage = () => {
                               {/* Trash */}
                               <button
                                 onClick={() => handleDeletePlan(plan.id, plan.name)}
-                                className="text-rose-600 hover:bg-rose-50 p-1 rounded-md transition-colors cursor-pointer border border-transparent hover:border-rose-100"
+                                className="text-rose-600 hover:bg-rose-50 p-1 rounded-md transition-colors cursor-pointer border border-transparent hover:border-rose-105"
                                 title="Delete plan"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -664,7 +690,7 @@ const SubscriptionPage = () => {
             {/* Quick toggles card */}
             <div className="bg-slate-900 border border-slate-950 rounded-2xl p-5 shadow-md relative text-white">
               {/* Ribbon */}
-              <span className="absolute top-3 right-4 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500 text-slate-950 tracking-wider">
+              <span className="absolute top-3 right-4 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500 text-slate-955 tracking-wider">
                 No App Release Required
               </span>
               <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
@@ -705,9 +731,9 @@ const SubscriptionPage = () => {
             {/* Payment Methods Section */}
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-1">
-                <h3 className="text-sm font-bold text-slate-950">Payment Methods</h3>
+                <h3 className="text-sm font-bold text-slate-955">Payment Methods</h3>
                 <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-100">
-                  {activeMethodsCount}/3 on
+                  {stats.activeMethodsCount}/3 on
                 </span>
               </div>
 
@@ -764,9 +790,9 @@ const SubscriptionPage = () => {
             {/* Fee Types Section */}
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-1">
-                <h3 className="text-sm font-bold text-slate-950">Fee Types</h3>
+                <h3 className="text-sm font-bold text-slate-955">Fee Types</h3>
                 <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-100">
-                  {activeFeesCount}/3 on
+                  {stats.activeFeesCount}/3 on
                 </span>
               </div>
 
@@ -803,11 +829,7 @@ const SubscriptionPage = () => {
                     {/* Switch toggler */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setFeeTypes((prev) =>
-                          prev.map((f) => (f.id === ft.id ? { ...f, isActive: !f.isActive, modifiedBy: 'Jean Alima', modifiedAt: 'Just now' } : f))
-                        )
-                      }}
+                      onClick={() => handleToggleFee(ft.id)}
                       className="focus:outline-none cursor-pointer pt-1"
                     >
                       <div
@@ -827,9 +849,9 @@ const SubscriptionPage = () => {
             {/* Access Tiers Section */}
             <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-1">
-                <h3 className="text-sm font-bold text-slate-950">Access Tiers</h3>
+                <h3 className="text-sm font-bold text-slate-955">Access Tiers</h3>
                 <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
-                  {activeTiersCount}/2 on
+                  {stats.activeTiersCount}/2 on
                 </span>
               </div>
 
@@ -866,11 +888,7 @@ const SubscriptionPage = () => {
                     {/* Switch toggler */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setAccessTiers((prev) =>
-                          prev.map((t) => (t.id === at.id ? { ...t, isActive: !t.isActive, modifiedBy: 'Jean Alima', modifiedAt: 'Just now' } : t))
-                        )
-                      }}
+                      onClick={() => handleToggleAccessTier(at.id)}
                       className="focus:outline-none cursor-pointer pt-1"
                     >
                       <div
@@ -893,516 +911,23 @@ const SubscriptionPage = () => {
       {/* ADD/EDIT PLAN MODAL */}
       {(isAddModalOpen || editingPlan) && (
         <PlanModalEditor
+          key={editingPlan?.id || 'new'}
           plan={editingPlan || undefined}
-          onClose={() => {
-            setIsAddModalOpen(false)
-            setEditingPlan(null)
-          }}
-          onSubmit={(data) => {
-            if (editingPlan) {
-              handleUpdatePlan({ ...editingPlan, ...data })
-            } else {
-              handleCreatePlan(data)
-            }
-          }}
+          onClose={handleClosePlanModal}
+          onSubmit={editingPlan ? handleUpdatePlan : handleCreatePlan}
         />
       )}
 
       {/* ITEM CONFIGURATION DRAWER / MODAL */}
       {configuringItem && (
         <ConfigurationDrawer
+          key={`${configuringItem.type}-${configuringItem.id}`}
           item={configuringItem}
-          onClose={() => setConfiguringItem(null)}
+          onClose={handleCloseConfigDrawer}
           onSave={handleSaveConfiguration}
         />
       )}
     </DashboardChildrenLayout>
-  )
-}
-
-// PLAN MODAL EDITOR COMPONENT (Add / Edit)
-interface PlanModalEditorProps {
-  plan?: SubscriptionPlan
-  onClose: () => void
-  onSubmit: (data: Omit<SubscriptionPlan, 'id'>) => void
-}
-
-const PlanModalEditor = ({ plan, onClose, onSubmit }: PlanModalEditorProps) => {
-  const [name, setName] = useState(plan?.name || '')
-  const [unlocksDescription, setUnlocksDescription] = useState(plan?.unlocksDescription || '')
-  const [price, setPrice] = useState(plan?.price || 0)
-  const [currency, setCurrency] = useState(plan?.currency || 'XAF')
-  const [period, setPeriod] = useState<SubscriptionPlan['period']>(plan?.period || 'month')
-  const [badgeLabel, setBadgeLabel] = useState(plan?.badgeLabel || '')
-  const [badgeColor, setBadgeColor] = useState<SubscriptionPlan['badgeColor']>(plan?.badgeColor || 'orange')
-  const [icon, setIcon] = useState<SubscriptionPlan['icon']>(plan?.icon || 'star')
-  const [displayOrder, setDisplayOrder] = useState(plan?.displayOrder || 99)
-  const [isActive, setIsActive] = useState(plan ? plan.isActive : true)
-
-  // Features list
-  const [features, setFeatures] = useState<Feature[]>(
-    plan?.features || [
-      { id: 'f-1', text: '3 premium parcel unlocks', enabled: true },
-      { id: 'f-2', text: 'Owner contact info', enabled: true },
-      { id: 'f-3', text: 'Title deed details', enabled: true }
-    ]
-  )
-
-  const handleAddFeature = () => {
-    setFeatures((prev) => [...prev, { id: `feat-${Date.now()}`, text: '', enabled: true }])
-  }
-
-  const handleRemoveFeature = (id: string) => {
-    setFeatures((prev) => prev.filter((f) => f.id !== id))
-  }
-
-  const handleFeatureTextChange = (id: string, text: string) => {
-    setFeatures((prev) => prev.map((f) => (f.id === id ? { ...f, text } : f)))
-  }
-
-  const handleFeatureToggle = (id: string) => {
-    setFeatures((prev) => prev.map((f) => (f.id === id ? { ...f, enabled: !f.enabled } : f)))
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name || !unlocksDescription || price <= 0) {
-      alert('Please fill out all required fields and enter a valid price.')
-      return
-    }
-    onSubmit({
-      name,
-      unlocksDescription,
-      price: Number(price),
-      currency,
-      period,
-      badgeLabel: badgeLabel || undefined,
-      badgeColor: badgeLabel ? badgeColor : undefined,
-      icon,
-      features,
-      displayOrder: Number(displayOrder),
-      isActive
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto scrollbar-none">
-      <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto scrollbar-none animate-in zoom-in-95 duration-200 text-left">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="mb-5 pb-3 border-b border-slate-50">
-          <h3 className="text-base font-bold text-slate-900">
-            {plan ? 'Edit Plan' : 'Add New Plan'}
-          </h3>
-          <p className="text-xs font-semibold text-slate-400 mt-0.5">
-            {plan ? `Editing "${plan.name}"` : 'Create a new subscription plan'}
-          </p>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Plan Icon Select */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Plan Icon</label>
-            <div className="flex items-center gap-3">
-              {[
-                { name: 'zap' as const, comp: Zap },
-                { name: 'star' as const, comp: Star },
-                { name: 'crown' as const, comp: Crown }
-              ].map((ic) => {
-                const IconComp = ic.comp
-                const isSelected = icon === ic.name
-                return (
-                  <button
-                    key={ic.name}
-                    type="button"
-                    onClick={() => setIcon(ic.name)}
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer shadow-inner",
-                      isSelected
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-800 scale-105 stroke-[2.5]"
-                        : "border-slate-200 bg-white text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    <IconComp className="w-5 h-5" />
-                  </button>
-                )
-              })}
-              {/* Dummy icons placeholders to match screenshot */}
-              {[1, 2, 3, 4, 5].map((idx) => (
-                <div key={idx} className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center" />
-              ))}
-            </div>
-          </div>
-
-          {/* Plan Name */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Plan Name *</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Weekly, Monthly..."
-              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-            />
-          </div>
-
-          {/* Unlocks Description */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Unlocks Description</label>
-            <input
-              type="text"
-              value={unlocksDescription}
-              onChange={(e) => setUnlocksDescription(e.target.value)}
-              placeholder="e.g. 20 unlocks per week"
-              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-            />
-          </div>
-
-          {/* Price, Currency, Period inputs */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Price *</label>
-              <input
-                type="number"
-                required
-                value={price || ''}
-                onChange={(e) => setPrice(Number(e.target.value))}
-                placeholder="e.g. 2500"
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Currency</label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-3.5 py-2 border border-slate-200 bg-slate-50/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
-              >
-                <option value="XAF">XAF</option>
-                <option value="AXF">AXF</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Period</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as any)}
-                className="w-full px-3.5 py-2 border border-slate-200 bg-slate-50/50 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all cursor-pointer"
-              >
-                <option value="day">Daily</option>
-                <option value="week">Weekly</option>
-                <option value="month">Monthly</option>
-                <option value="year">Yearly</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Badge Label and Badge Color Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Badge Label (optional)</label>
-              <input
-                type="text"
-                value={badgeLabel}
-                onChange={(e) => setBadgeLabel(e.target.value)}
-                placeholder="e.g. MOST POPULAR"
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-              />
-            </div>
-
-            {/* Badge Color circle pickers */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Badge Color</label>
-              <div className="flex items-center gap-2 h-9">
-                {[
-                  { name: 'orange' as const, hexClass: 'bg-amber-500' },
-                  { name: 'green' as const, hexClass: 'bg-emerald-600' },
-                  { name: 'purple' as const, hexClass: 'bg-purple-600' },
-                  { name: 'red' as const, hexClass: 'bg-rose-600' },
-                  { name: 'blue' as const, hexClass: 'bg-blue-600' }
-                ].map((clr) => (
-                  <button
-                    key={clr.name}
-                    type="button"
-                    onClick={() => setBadgeColor(clr.name)}
-                    disabled={!badgeLabel}
-                    className={cn(
-                      "w-6 h-6 rounded-full cursor-pointer transition-all border ring-offset-2 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed",
-                      clr.hexClass,
-                      badgeColor === clr.name && badgeLabel ? "ring-2 ring-emerald-600 border-white" : "border-transparent"
-                    )}
-                    title={clr.name}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Plan Features Checklist Inputs */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-slate-700">Plan Features</label>
-              <button
-                type="button"
-                onClick={handleAddFeature}
-                className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-xs"
-              >
-                <Plus className="w-3 h-3 stroke-[2.5]" />
-                <span>Add feature</span>
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin pr-1 border border-slate-50/50 p-1.5 rounded-xl bg-slate-50/30">
-              {features.map((feat) => (
-                <div key={feat.id} className="flex items-center gap-2.5">
-                  {/* Enabled Toggle Checkbox */}
-                  <button
-                    type="button"
-                    onClick={() => handleFeatureToggle(feat.id)}
-                    className={cn(
-                      "w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 border shadow-xs transition-colors cursor-pointer",
-                      feat.enabled
-                        ? "bg-emerald-600 text-white border-emerald-700"
-                        : "bg-white text-transparent border-slate-200 hover:border-slate-350"
-                    )}
-                  >
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </button>
-
-                  {/* Text Input */}
-                  <input
-                    type="text"
-                    required
-                    value={feat.text}
-                    onChange={(e) => handleFeatureTextChange(feat.id, e.target.value)}
-                    placeholder="Feature description..."
-                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-white"
-                  />
-
-                  {/* Remove Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveFeature(feat.id)}
-                    className="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
-                    title="Remove feature"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Display Order and Active toggle switches */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-50 pt-4 mt-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Display Order</label>
-              <input
-                type="number"
-                value={displayOrder}
-                onChange={(e) => setDisplayOrder(Number(e.target.value))}
-                placeholder="e.g. 1"
-                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-              />
-              <p className="text-[10px] text-slate-400 font-medium">Lower number = shown first</p>
-            </div>
-
-            <div className="flex justify-between items-center bg-slate-50/50 border border-slate-100 rounded-xl p-3.5 h-[58px]">
-              <div>
-                <span className="text-xs font-bold text-slate-700 block">Plan Active</span>
-                <span className="text-[10px] text-slate-450 font-medium">Visible to clients on client page</span>
-              </div>
-              {/* Toggler */}
-              <button
-                type="button"
-                onClick={() => setIsActive(!isActive)}
-                className="focus:outline-none cursor-pointer"
-              >
-                <div
-                  className={cn(
-                    "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 flex items-center shadow-inner",
-                    isActive ? "bg-emerald-600 justify-end" : "bg-slate-200 justify-start"
-                  )}
-                >
-                  <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Action buttons footer */}
-          <div className="flex items-center gap-2 pt-4 border-t border-slate-50 mt-4 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-950 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
-            >
-              {plan ? 'Save Changes' : 'Create Plan'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// GENERIC ITEM CONFIGURATION DRAWER COMPONENT
-interface ConfigurationDrawerProps {
-  item: {
-    type: 'payment' | 'fee' | 'tier'
-    id: string
-    name: string
-    description: string
-    isActive: boolean
-  }
-  onClose: () => void
-  onSave: (id: string, type: 'payment' | 'fee' | 'tier', name: string) => void
-}
-
-const ConfigurationDrawer = ({ item, onClose, onSave }: ConfigurationDrawerProps) => {
-  const [apiKey, setApiKey] = useState('')
-  const [apiSecret, setApiSecret] = useState('')
-  const [feeAmount, setFeeAmount] = useState(5000)
-  const [accessMonths, setAccessMonths] = useState(12)
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs" onClick={onClose}>
-      <div
-        className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="space-y-0.5">
-            <h3 className="text-base font-bold text-slate-950">Configure Registry</h3>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-              {item.type} · {item.name}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-semibold text-slate-700 leading-relaxed">
-            {item.description}
-          </div>
-
-          {/* Conditional form fields based on type */}
-          {item.type === 'payment' && (
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 border-b border-slate-50 pb-1">Gateway API Settings</h4>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Client API Key / Username</label>
-                <input
-                  type="text"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="e.g. mtn_momo_sandbox_key_..."
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-755 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">API Private Secret / Password</label>
-                <input
-                  type="password"
-                  value={apiSecret}
-                  onChange={(e) => setApiSecret(e.target.value)}
-                  placeholder="••••••••••••••••"
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-755 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-                />
-              </div>
-              <div className="p-3.5 bg-amber-50/50 border border-amber-100 rounded-xl">
-                <p className="text-[11px] font-semibold text-amber-700 leading-relaxed">
-                  ⚠️ Always make sure you test configurations in Sandbox environment before moving this payment method to Live state.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {item.type === 'fee' && (
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 border-b border-slate-50 pb-1">Price Configuration</h4>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Default Fee (XAF)</label>
-                <input
-                  type="number"
-                  value={feeAmount}
-                  onChange={(e) => setFeeAmount(Number(e.target.value))}
-                  placeholder="e.g. 5000"
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-755 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-                />
-              </div>
-              <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-xl">
-                <p className="text-[11px] font-semibold text-emerald-700 leading-relaxed">
-                  ● Value is applied instantly on checkout invoices for all active client registrations.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {item.type === 'tier' && (
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 border-b border-slate-50 pb-1">Access Options</h4>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Access Period Validity (Months)</label>
-                <input
-                  type="number"
-                  value={accessMonths}
-                  onChange={(e) => setAccessMonths(Number(e.target.value))}
-                  placeholder="e.g. 12"
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-755 focus:outline-none focus:border-blue-600 transition-all bg-slate-50/50"
-                />
-              </div>
-              <div className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl flex items-start gap-2.5">
-                <Shield className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-[11px] font-semibold text-blue-700 leading-relaxed">
-                  Clients granted this tier will gain cryptographic access tokens valid for the specified period.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-100 bg-slate-50/40 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2.5 text-xs font-bold text-slate-650 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
-          >
-            Close
-          </button>
-          <button
-            onClick={() => onSave(item.id, item.type, item.name)}
-            className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-950 rounded-xl transition-all cursor-pointer shadow-sm border border-emerald-900"
-          >
-            Save Configuration
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Check, X, ShieldAlert, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -66,13 +66,13 @@ const defaultPermissions: PermissionState = {
   }
 }
 
+const ROLES = ['Super Admin', 'Admin', 'Supervisor', 'Surveyor', 'Field Agent', 'Client']
+const PERMISSION_KEYS = ['Dashboard', 'Parcels', 'User Mgmt', 'Transactions', 'GIS Map', 'Audit Logs', 'System Settings']
+
 const RolesPermissions = () => {
   const [permissions, setPermissions] = useState<PermissionState>(defaultPermissions)
 
-  const roles = ['Super Admin', 'Admin', 'Supervisor', 'Surveyor', 'Field Agent', 'Client']
-  const permissionKeys = ['Dashboard', 'Parcels', 'User Mgmt', 'Transactions', 'GIS Map', 'Audit Logs', 'System Settings']
-
-  const handleTogglePermission = (role: string, perm: string) => {
+  const handleTogglePermission = useCallback((role: string, perm: string) => {
     if (role === 'Super Admin') {
       // Super Admin should usually retain all permissions for system stability
       alert('Super Admin permissions are locked and cannot be modified.')
@@ -85,17 +85,17 @@ const RolesPermissions = () => {
         [perm]: !prev[role][perm]
       }
     }))
-  }
+  }, [])
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     alert('Security roles & permissions updated successfully.')
-  }
+  }, [])
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     if (confirm('Are you sure you want to reset all permissions to default?')) {
       setPermissions(defaultPermissions)
     }
-  }
+  }, [])
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs text-left space-y-5">
@@ -117,7 +117,7 @@ const RolesPermissions = () => {
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-100">
               <th className="py-3.5 px-4 text-left text-[10px] font-bold text-slate-450 uppercase tracking-wider">Role</th>
-              {permissionKeys.map((p) => (
+              {PERMISSION_KEYS.map((p) => (
                 <th key={p} className="py-3.5 px-2 text-center text-[10px] font-bold text-slate-450 uppercase tracking-wider">
                   {p}
                 </th>
@@ -125,7 +125,7 @@ const RolesPermissions = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {roles.map((role) => (
+            {ROLES.map((role) => (
               <tr key={role} className="hover:bg-slate-50/20 transition-colors">
                 {/* Role name */}
                 <td className="py-3.5 px-4 text-left text-xs font-bold text-slate-800">
@@ -133,7 +133,7 @@ const RolesPermissions = () => {
                 </td>
 
                 {/* Permission switches */}
-                {permissionKeys.map((perm) => {
+                {PERMISSION_KEYS.map((perm) => {
                   const isChecked = permissions[role][perm]
                   const isSuperAdmin = role === 'Super Admin'
                   return (

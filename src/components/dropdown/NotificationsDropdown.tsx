@@ -10,6 +10,36 @@ interface NotificationsDropdownProps {
   className?: string
 }
 
+const NOTIFICATIONS = [
+  {
+    id: 1,
+    title: 'Conflict detected on Parcel #CM-2847',
+    time: '2 min ago',
+    type: 'conflict',
+    icon: AlertCircle,
+    iconBg: 'bg-red-55/60 text-red-600',
+    unread: true
+  },
+  {
+    id: 2,
+    title: 'Registration #REG-1203 needs review',
+    time: '15 min ago',
+    type: 'review',
+    icon: FileText,
+    iconBg: 'bg-amber-55/60 text-amber-600',
+    unread: true
+  },
+  {
+    id: 3,
+    title: 'QField submission approved by Supervisor',
+    time: '1h ago',
+    type: 'approved',
+    icon: CheckCircle2,
+    iconBg: 'bg-emerald-55/60 text-emerald-600',
+    unread: true
+  }
+]
+
 const NotificationsDropdown = ({ isOpen, onClose, className }: NotificationsDropdownProps) => {
   const router = useRouter()
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -28,36 +58,6 @@ const NotificationsDropdown = ({ isOpen, onClose, className }: NotificationsDrop
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isOpen, onClose])
-
-  const notifications = [
-    {
-      id: 1,
-      title: 'Conflict detected on Parcel #CM-2847',
-      time: '2 min ago',
-      type: 'conflict',
-      icon: AlertCircle,
-      iconBg: 'bg-red-50 text-red-500',
-      unread: true
-    },
-    {
-      id: 2,
-      title: 'Registration #REG-1203 needs review',
-      time: '15 min ago',
-      type: 'review',
-      icon: FileText,
-      iconBg: 'bg-amber-50 text-amber-500',
-      unread: true
-    },
-    {
-      id: 3,
-      title: 'QField submission approved by Supervisor',
-      time: '1h ago',
-      type: 'approved',
-      icon: CheckCircle2,
-      iconBg: 'bg-emerald-50 text-emerald-500',
-      unread: true
-    }
-  ]
 
   if (!isOpen) return null
 
@@ -82,7 +82,7 @@ const NotificationsDropdown = ({ isOpen, onClose, className }: NotificationsDrop
 
       {/* Notification List */}
       <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-50">
-        {notifications.map((item) => {
+        {NOTIFICATIONS.map((item) => {
           const IconComponent = item.icon
           return (
             <div
